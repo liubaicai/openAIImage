@@ -2077,8 +2077,8 @@ function ProviderForm({
     try {
       saved(
         await api<Settings>(
-          "/providers/" + (provider?.id || crypto.randomUUID()),
-          "PUT",
+          provider ? "/providers/" + provider.id : "/providers",
+          provider ? "PUT" : "POST",
           {
             name,
             type,

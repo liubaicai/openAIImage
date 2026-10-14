@@ -225,9 +225,11 @@ app.post("/api/providers/models", async (req, res) => {
     throw fail(e instanceof Error ? e.message : "获取模型列表失败", 400);
   }
 });
-app.put("/api/providers/:id", async (req, res) => {
+async function saveProvider(req: express.Request, res: express.Response) {
   const userId = res.locals.user.id;
-  const id = z.string().uuid().parse(req.params.id);
+  const id = req.params.id
+    ? z.string().uuid().parse(req.params.id)
+    : randomUUID();
   const body = providerSchema.parse(req.body);
   const settings = getSettings(userId);
   const existing = settings.providers.find((p) => p.id === id);
@@ -296,7 +298,9 @@ app.put("/api/providers/:id", async (req, res) => {
     settings.defaultImageModel = null;
   saveSettings(userId, settings);
   res.json(settings);
-});
+}
+app.post("/api/providers", saveProvider);
+app.put("/api/providers/:id", saveProvider);
 app.delete("/api/providers/:id", (req, res) => {
   const userId = res.locals.user.id;
   const settings = getSettings(userId);

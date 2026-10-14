@@ -533,6 +533,33 @@ test(
         ).status,
         400,
       );
+      assert.equal((await call("/providers", "POST", provider)).status, 401);
+      const createdProvider = await call(
+        "/providers",
+        "POST",
+        { ...provider, name: "Server generated ID" },
+        cookie,
+      );
+      assert.equal(createdProvider.status, 200);
+      const newProvider = createdProvider.data.providers.find(
+        (p: { name: string }) => p.name === "Server generated ID",
+      );
+      assert.match(
+        newProvider.id,
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
+      assert.ok(!JSON.stringify(createdProvider.data).includes(key));
+      assert.equal(
+        (
+          await call(
+            "/providers/" + newProvider.id,
+            "DELETE",
+            undefined,
+            cookie,
+          )
+        ).status,
+        200,
+      );
       const configured = await call(
         "/providers/" + p1,
         "PUT",
