@@ -17,3 +17,4 @@
 !tests/**
 !LICENSE
 !Dockerfile
+!docker-entrypoint.sh

@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, rm, readFile, readdir, writeFile } from "node:fs/promises";
+import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -17,6 +18,7 @@ test(
   async () => {
     const requests: { url: string; body: string; contentType: string }[] = [];
     let failModel = true;
+    let releaseGeneration: (() => void) | undefined;
     const upstream = createServer(async (req, res) => {
       let body = "";
       for await (const part of req) body += part;
@@ -189,6 +191,14 @@ test(
           }),
         );
         return;
+      }
+      if (
+        req.url === "/v1/images/generations" &&
+        JSON.parse(body).prompt === "delete in flight"
+      ) {
+        await new Promise<void>((resolve) => {
+          releaseGeneration = resolve;
+        });
       }
       if (req.url === "/v1/chat/completions") {
         const parsed = JSON.parse(body);
@@ -820,10 +830,52 @@ test(
           (r) => r.body.includes("image_url") && r.body.includes("保留主体"),
         ),
       );
+      const favoriteImage = task.results[0].images[0];
+      const star = await call(
+        `/tasks/${id}/favorites`,
+        "PATCH",
+        { image: favoriteImage, favorite: true },
+        cookie,
+      );
+      assert.deepEqual(star.data.favoriteImages, [favoriteImage]);
+      assert.deepEqual(
+        (
+          await call(
+            `/tasks/${id}/favorites`,
+            "PATCH",
+            { image: favoriteImage, favorite: true },
+            cookie,
+          )
+        ).data.favoriteImages,
+        [favoriteImage],
+      );
       assert.equal(
-        (await call(`/tasks/${id}`, "PATCH", { favorite: true }, cookie)).data
-          .favorite,
-        true,
+        (
+          await call(
+            `/tasks/${id}/favorites`,
+            "PATCH",
+            { image: "/api/images/not-owned", favorite: true },
+            cookie,
+          )
+        ).status,
+        404,
+      );
+      assert.deepEqual(
+        (
+          await call(
+            `/tasks/${id}/favorites`,
+            "PATCH",
+            { image: favoriteImage, favorite: false },
+            cookie,
+          )
+        ).data.favoriteImages,
+        [],
+      );
+      await call(
+        `/tasks/${id}/favorites`,
+        "PATCH",
+        { image: favoriteImage, favorite: true },
+        cookie,
       );
       assert.equal(
         (
@@ -847,7 +899,12 @@ test(
       );
       assert.equal((await call("/settings")).status, 401);
       assert.equal(
-        (await call(`/tasks/${id}`, "PATCH", { favorite: false })).status,
+        (
+          await call(`/tasks/${id}/favorites`, "PATCH", {
+            image: favoriteImage,
+            favorite: false,
+          })
+        ).status,
         401,
       );
       assert.equal(
@@ -873,7 +930,47 @@ test(
       );
       assert.ok(!raw.includes(Buffer.from(key)));
       await stop();
+      const legacyId = randomUUID();
+      const legacyAsset = randomUUID();
+      const legacyImage = "/api/images/" + legacyAsset;
+      const legacyDb = new DatabaseSync(path.join(directory, "frame.sqlite"));
+      const owner = (
+        legacyDb.prepare("SELECT user_id FROM tasks WHERE id=?").get(id) as {
+          user_id: string;
+        }
+      ).user_id;
+      const legacyTask = {
+        ...task,
+        id: legacyId,
+        favorite: true,
+        results: [{ ...task.results[0], images: [legacyImage] }],
+      };
+      delete legacyTask.favoriteImages;
+      legacyDb
+        .prepare("INSERT INTO tasks VALUES (?,?,?)")
+        .run(legacyId, owner, JSON.stringify(legacyTask));
+      legacyDb
+        .prepare("INSERT INTO assets (id,user_id,mime) VALUES (?,?,?)")
+        .run(legacyAsset, owner, "image/png");
+      legacyDb.close();
+      await writeFile(
+        path.join(directory, "images", legacyAsset),
+        Buffer.from(pixel, "base64"),
+      );
       await start();
+      assert.deepEqual(
+        (await call("/tasks", "GET", undefined, cookie)).data.find(
+          (t: Task) => t.id === legacyId,
+        ).favoriteImages,
+        [legacyImage],
+      );
+      assert.equal(
+        (await call("/tasks/" + legacyId, "DELETE", undefined, cookie)).status,
+        200,
+      );
+      await assert.rejects(
+        readFile(path.join(directory, "images", legacyAsset)),
+      );
       assert.equal((await call("/auth/me")).data.setupRequired, false);
       assert.equal(
         (
@@ -885,9 +982,69 @@ test(
         ).status,
         409,
       );
+      assert.deepEqual(
+        (await call("/tasks", "GET", undefined, cookie)).data.find(
+          (t: Task) => t.id === id,
+        ).favoriteImages,
+        [favoriteImage],
+      );
+      assert.equal((await call(`/tasks/${id}`, "DELETE")).status, 401);
+      const deleting = (
+        await call("/tasks", "GET", undefined, cookie)
+      ).data.find((t: Task) => t.id === id) as Task;
       assert.equal(
-        (await call("/tasks", "GET", undefined, cookie)).data[0].favorite,
-        true,
+        (await call(`/tasks/${id}`, "DELETE", undefined, cookie)).status,
+        200,
+      );
+      for (const image of deleting.results.flatMap((r) => r.images)) {
+        assert.equal(
+          (await call(image.replace("/api", ""), "GET", undefined, cookie))
+            .status,
+          404,
+        );
+        await assert.rejects(
+          readFile(path.join(directory, "images", image.split("/").pop()!)),
+        );
+      }
+      assert.ok(
+        !(await call("/tasks", "GET", undefined, cookie)).data.some(
+          (t: Task) => t.id === id,
+        ),
+      );
+      assert.equal(
+        (await call(`/tasks/${id}`, "DELETE", undefined, cookie)).status,
+        404,
+      );
+      const beforeFiles = (
+        await readdir(path.join(directory, "images"))
+      ).sort();
+      const inFlight = await call(
+        "/tasks",
+        "POST",
+        {
+          prompt: "delete in flight",
+          models: [{ providerId: p1, modelId: "image-model" }],
+          options: defaultOptions,
+        },
+        cookie,
+      );
+      for (let i = 0; i < 40 && !releaseGeneration; i++) await sleep(100);
+      assert.ok(releaseGeneration, "generation reached upstream");
+      assert.equal(
+        (await call("/tasks/" + inFlight.data.id, "DELETE", undefined, cookie))
+          .status,
+        200,
+      );
+      releaseGeneration();
+      await sleep(500);
+      assert.deepEqual(
+        (await readdir(path.join(directory, "images"))).sort(),
+        beforeFiles,
+      );
+      assert.ok(
+        !(await call("/tasks", "GET", undefined, cookie)).data.some(
+          (t: Task) => t.id === inFlight.data.id,
+        ),
       );
       const savedProvider = (
         await call("/settings", "GET", undefined, cookie)
@@ -966,6 +1123,7 @@ test(
         401,
       );
     } finally {
+      releaseGeneration?.();
       await stop();
       await new Promise<void>((r) => upstream.close(() => r()));
       await rm(directory, { recursive: true, force: true });

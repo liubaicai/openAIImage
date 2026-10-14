@@ -186,6 +186,8 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [error, setError] = useState("");
   const [help, setHelp] = useState(false);
+  const [deleteTask, setDeleteTask] = useState<Task | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [sort, setSort] = useState("new");
   const [providerEdit, setProviderEdit] = useState<Provider | "new" | null>(
     null,
@@ -261,24 +263,49 @@ export default function App() {
       ),
     );
   }
-  async function favorite(t: Task) {
+  async function favorite(t: Task, image: string) {
+    const selected = !(t.favoriteImages || []).includes(image);
     try {
       updateTask(
         demo
-          ? { ...t, favorite: !t.favorite }
-          : await api<Task>("/tasks/" + t.id, "PATCH", {
-              favorite: !t.favorite,
+          ? {
+              ...t,
+              favoriteImages: selected
+                ? [...(t.favoriteImages || []), image]
+                : (t.favoriteImages || []).filter((url) => url !== image),
+            }
+          : await api<Task>("/tasks/" + t.id + "/favorites", "PATCH", {
+              image,
+              favorite: selected,
             }),
       );
     } catch (e) {
       notify((e as Error).message);
     }
   }
+  async function confirmDeleteTask() {
+    if (!deleteTask) return;
+    setDeleting(true);
+    try {
+      if (!demo) await api("/tasks/" + deleteTask.id, "DELETE");
+      setTasks((old) => old.filter((t) => t.id !== deleteTask.id));
+      if (selectedId === deleteTask.id) setSelectedId(null);
+      setDeleteTask(null);
+      notify("任务及全部作品已删除");
+    } catch (e) {
+      notify((e as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  }
+  const favoriteCount = tasks.reduce(
+    (sum, t) => sum + (t.favoriteImages?.length || 0),
+    0,
+  );
   const selected = tasks.find((t) => t.id === selectedId);
   const filtered = tasks
     .filter(
       (t) =>
-        (page !== "favorites" || t.favorite) &&
         (filter === "all" || taskStatus(t) === filter) &&
         (t.title + t.prompt + t.results.map((r) => r.modelName).join(" "))
           .toLowerCase()
@@ -314,22 +341,13 @@ export default function App() {
     <div className="app-shell">
       <aside className={"sidebar " + (mobileNav ? "mobile-open" : "")}>
         <Logo />
-        <div className="workspace">
-          <span className="workspace-avatar">
-            {user.name.slice(0, 1).toUpperCase()}
-          </span>
-          <div>
-            <strong>个人工作空间</strong>
-            <small>{demo ? "演示模式" : "Personal workspace"}</small>
-          </div>
-          <button
-            className="icon-button mobile-only"
-            aria-label="关闭导航"
-            onClick={() => setMobileNav(false)}
-          >
-            <X size={16} />
-          </button>
-        </div>
+        <button
+          className="icon-button mobile-only"
+          aria-label="关闭导航"
+          onClick={() => setMobileNav(false)}
+        >
+          <X size={16} />
+        </button>
         <p className="nav-label">工作台</p>
         <nav>
           <button
@@ -350,7 +368,7 @@ export default function App() {
             }}
           >
             <Heart size={18} />
-            我的收藏<span>{tasks.filter((t) => t.favorite).length}</span>
+            我的收藏<span>{favoriteCount}</span>
           </button>
           <button
             className={page === "settings" ? "active" : ""}
@@ -364,21 +382,6 @@ export default function App() {
           </button>
         </nav>
         <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <div className="note-mark">
-              <Image size={21} />
-            </div>
-            <strong>好作品，从一个想法开始。</strong>
-            <p>让不同模型，带来更多可能。</p>
-            <button onClick={() => setCreate(true)}>
-              开始创作 <ArrowUpRight size={15} />
-            </button>
-          </div>
-          <button className="help-button" onClick={() => setHelp(true)}>
-            <CircleHelp size={17} />
-            使用指南
-            <ArrowUpRight size={14} />
-          </button>
           <div className="profile">
             <span className="user-avatar">
               {user.name.slice(0, 1).toUpperCase()}
@@ -447,22 +450,22 @@ export default function App() {
               demo={demo}
               notify={notify}
             />
+          ) : page === "favorites" ? (
+            <FavoriteGallery
+              tasks={tasks}
+              favorite={favorite}
+              open={setSelectedId}
+            />
           ) : (
             <>
               <div className="page-heading">
                 <div>
                   <div className="eyebrow">YOUR CREATIVE SPACE</div>
                   <h1>
-                    {page === "favorites"
-                      ? "值得留住的灵感"
-                      : "让想法，成为画面"}
+                    让想法，成为画面
                     <span className="heading-dot">.</span>
                   </h1>
-                  <p>
-                    {page === "favorites"
-                      ? "收藏喜欢的作品，随时回到创作的那一刻。"
-                      : "从一段描述开始，探索不同模型的表达。"}
-                  </p>
+                  <p>从一段描述开始，探索不同模型的表达。</p>
                 </div>
                 <button
                   className="button primary"
@@ -545,7 +548,7 @@ export default function App() {
               </div>
               <div className="section-meta">
                 <span>
-                  {page === "favorites" ? "收藏作品" : "最近创作"}{" "}
+                  最近创作
                   <b>{filtered.length}</b>
                 </span>
                 <label className="sort">
@@ -571,7 +574,7 @@ export default function App() {
                       key={t.id}
                       task={t}
                       open={() => setSelectedId(t.id)}
-                      favorite={() => favorite(t)}
+                      remove={() => setDeleteTask(t)}
                     />
                   ))}
                 </div>
@@ -586,18 +589,14 @@ export default function App() {
                   <h3>
                     {query || filter !== "all"
                       ? "没有找到匹配的任务"
-                      : page === "favorites"
-                        ? "把喜欢的作品留在这里"
-                        : "第一张作品，从这里开始"}
+                      : "第一张作品，从这里开始"}
                   </h3>
                   <p>
                     {query || filter !== "all"
                       ? "试试其他关键词，或切换任务状态。"
-                      : page === "favorites"
-                        ? "点击作品上的爱心，就能在这里找到它。"
-                        : "添加一个图像模型，写下想法，让画面慢慢浮现。"}
+                      : "添加一个图像模型，写下想法，让画面慢慢浮现。"}
                   </p>
-                  {!query && filter === "all" && page !== "favorites" && (
+                  {!query && filter === "all" && (
                     <button
                       className="button primary"
                       onClick={() =>
@@ -645,9 +644,48 @@ export default function App() {
           close={() => setSelectedId(null)}
           demo={demo}
           update={updateTask}
-          favorite={() => favorite(selected)}
+          favorite={(image) => favorite(selected, image)}
+          remove={() => setDeleteTask(selected)}
           notify={notify}
         />
+      )}
+      {deleteTask && (
+        <Modal
+          title="删除任务？"
+          close={() => {
+            if (!deleting) setDeleteTask(null);
+          }}
+        >
+          <div className="confirm-content">
+            <p>
+              将永久删除「{deleteTask.title}
+              」及其全部原图、修改版本和图片收藏，无法恢复。
+            </p>
+            {deleteTask.results.some(
+              (r) => r.status === "queued" || r.status === "running",
+            ) && (
+              <p>
+                排队任务将停止执行。已发送给接入商的请求可能仍会计费，其返回结果不会保留。
+              </p>
+            )}
+            <div className="modal-footer">
+              <button
+                className="button secondary"
+                disabled={deleting}
+                onClick={() => setDeleteTask(null)}
+              >
+                取消
+              </button>
+              <button
+                className="button danger"
+                disabled={deleting}
+                onClick={confirmDeleteTask}
+              >
+                {deleting ? "正在删除…" : "删除任务及作品"}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
       {providerEdit && (
         <ProviderForm
@@ -868,11 +906,11 @@ function Auth({
 function TaskCard({
   task,
   open,
-  favorite,
+  remove,
 }: {
   task: Task;
   open: () => void;
-  favorite: () => void;
+  remove: () => void;
 }) {
   const images = task.results.flatMap((r) => r.images);
   const models = new Set(task.results.map((r) => r.providerId + r.modelId))
@@ -910,11 +948,11 @@ function TaskCard({
         </span>
       </button>
       <button
-        className={"card-favorite " + (task.favorite ? "liked" : "")}
-        onClick={favorite}
-        aria-label={task.favorite ? "取消收藏" : "收藏作品"}
+        className="card-favorite"
+        onClick={remove}
+        aria-label={"删除任务：" + task.title}
       >
-        <Heart size={16} fill={task.favorite ? "currentColor" : "none"} />
+        <Trash2 size={16} />
       </button>
       <div className="card-body">
         <div className="card-title">
@@ -933,6 +971,116 @@ function TaskCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function FavoriteGallery({
+  tasks,
+  favorite,
+  open,
+}: {
+  tasks: Task[];
+  favorite: (task: Task, image: string) => void;
+  open: (id: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [zoom, setZoom] = useState<string | null>(null);
+  const photos = tasks.flatMap((task) =>
+    task.results.flatMap((result) =>
+      result.images
+        .filter((image) => task.favoriteImages?.includes(image))
+        .map((image) => ({ task, result, image })),
+    ),
+  );
+  const filtered = photos.filter(({ task, result }) =>
+    (task.title + task.prompt + result.modelName)
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <div className="eyebrow">YOUR COLLECTION</div>
+          <h1>
+            值得留住的画面<span className="heading-dot">.</span>
+          </h1>
+          <p>收藏的每一张照片，都在这里。</p>
+        </div>
+      </div>
+      <div className="collection-toolbar">
+        <span>{photos.length} 张收藏图片</span>
+        <label className="search">
+          <Search size={16} />
+          <input
+            aria-label="搜索收藏图片"
+            placeholder="搜索任务、提示词或模型"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+      </div>
+      <div className="photo-collection">
+        {filtered.map(({ task, result, image }) => (
+          <article className="collection-photo" key={task.id + image}>
+            <button
+              className="collection-preview"
+              onClick={() => setZoom(image)}
+              aria-label={"预览收藏图片：" + task.title}
+            >
+              <img
+                src={image}
+                alt={task.title + " · " + result.modelName}
+                loading="lazy"
+              />
+            </button>
+            <div className="collection-caption">
+              <div>
+                <strong>{task.title}</strong>
+                <small>{result.modelName}</small>
+              </div>
+              <button
+                className="icon-button liked"
+                onClick={() => favorite(task, image)}
+                aria-label={"取消收藏：" + task.title}
+              >
+                <Heart size={17} fill="currentColor" />
+              </button>
+            </div>
+            <button
+              className="text-button collection-source"
+              onClick={() => open(task.id)}
+            >
+              查看原任务 <ArrowUpRight size={14} />
+            </button>
+          </article>
+        ))}
+      </div>
+      {!filtered.length && (
+        <div className="empty-state">
+          <Heart size={32} />
+          <h3>{query ? "没有找到匹配的图片" : "把喜欢的照片留在这里"}</h3>
+          <p>打开任务，点击单张图片旁的爱心即可收藏。</p>
+        </div>
+      )}
+      {zoom && (
+        <div
+          className="lightbox"
+          role="dialog"
+          aria-label="收藏图片预览"
+          onClick={() => setZoom(null)}
+        >
+          <img src={zoom} alt="收藏图片原图" />
+          <button
+            className="icon-button"
+            aria-label="关闭预览"
+            onClick={() => setZoom(null)}
+          >
+            <X size={24} />
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1359,13 +1507,15 @@ function TaskDrawer({
   demo,
   update,
   favorite,
+  remove,
   notify,
 }: {
   task: Task;
   close: () => void;
   demo: boolean;
   update: (t: Task) => void;
-  favorite: () => void;
+  favorite: (image: string) => void;
+  remove: () => void;
   notify: (s: string) => void;
 }) {
   const [edit, setEdit] = useState<{ result: Result; image: string } | null>(
@@ -1449,12 +1599,9 @@ function TaskDrawer({
               ? "自动画质"
               : task.options.quality}
           </span>
-          <button
-            className={"text-button " + (task.favorite ? "liked" : "")}
-            onClick={favorite}
-          >
-            <Heart size={15} fill={task.favorite ? "currentColor" : "none"} />
-            {task.favorite ? "已收藏" : "收藏"}
+          <button className="text-button" onClick={remove}>
+            <Trash2 size={15} />
+            删除任务
           </button>
         </div>
         <div className="prompt-display">
@@ -1642,6 +1789,29 @@ function TaskDrawer({
                                 <span>
                                   图片 {String(i + 1).padStart(2, "0")}
                                 </span>
+                                <button
+                                  className={
+                                    "text-button " +
+                                    (task.favoriteImages?.includes(image)
+                                      ? "liked"
+                                      : "")
+                                  }
+                                  onClick={() => favorite(image)}
+                                  aria-label={
+                                    task.favoriteImages?.includes(image)
+                                      ? "取消收藏图片 " + (i + 1)
+                                      : "收藏图片 " + (i + 1)
+                                  }
+                                >
+                                  <Heart
+                                    size={14}
+                                    fill={
+                                      task.favoriteImages?.includes(image)
+                                        ? "currentColor"
+                                        : "none"
+                                    }
+                                  />
+                                </button>
                                 <button
                                   className="text-button"
                                   disabled={!r.canEdit}

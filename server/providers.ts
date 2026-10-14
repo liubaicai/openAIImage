@@ -1,10 +1,10 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { randomUUID } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import type { Model, Options, Provider } from "../shared/types.js";
-import { dataDir, db } from "./store.js";
+import { dataDir, db, getTask } from "./store.js";
 
 function privateIP(ip: string): boolean {
   if (ip.includes(":")) {
@@ -235,7 +235,8 @@ async function boundedBuffer(response: Response) {
   }
   return Buffer.concat(parts);
 }
-async function saveImage(userId: string, source: string) {
+async function saveImage(userId: string, source: string, taskId: string) {
+  if (!getTask(userId, taskId)) throw new Error("任务已删除");
   let bytes: Buffer;
   if (source.startsWith("data:")) {
     const match = source.match(
@@ -270,7 +271,13 @@ async function saveImage(userId: string, source: string) {
   if (!mime) throw new Error("服务商返回的内容不是 PNG、JPEG 或 WebP 图片");
   const id = randomUUID();
   await writeFile(path.join(dataDir, "images", id), bytes);
-  db.prepare("INSERT INTO assets VALUES (?,?,?)").run(id, userId, mime);
+  if (!getTask(userId, taskId)) {
+    await rm(path.join(dataDir, "images", id), { force: true });
+    throw new Error("任务已删除");
+  }
+  db.prepare(
+    "INSERT INTO assets (id,user_id,mime,task_id) VALUES (?,?,?,?)",
+  ).run(id, userId, mime, taskId);
   return "/api/images/" + id;
 }
 export async function generate(
@@ -280,7 +287,8 @@ export async function generate(
   model: string,
   prompt: string,
   options: Options,
-  sourceImage?: string,
+  sourceImage: string | undefined,
+  taskId: string,
 ) {
   let source: Buffer | undefined;
   let mime = "image/png";
@@ -343,6 +351,7 @@ export async function generate(
               image.b64_json
                 ? `data:${image.media_type || "image/png"};base64,${image.b64_json}`
                 : image.url,
+              taskId,
             ),
           );
         }
@@ -380,7 +389,7 @@ export async function generate(
       if (!Array.isArray(output) || !output.length)
         throw new Error("模型未返回图片，请检查模型是否支持图像输出");
       for (const image of output)
-        images.push(await saveImage(userId, image.image_url.url));
+        images.push(await saveImage(userId, image.image_url.url, taskId));
     }
     return images;
   }
@@ -420,6 +429,7 @@ export async function generate(
       return saveImage(
         userId,
         image.b64_json ? `data:image/png;base64,${image.b64_json}` : image.url!,
+        taskId,
       );
     }),
   );

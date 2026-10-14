@@ -37,7 +37,10 @@ jobs:
       - name: Build and start
         run: |
           docker build -t frame:test .
-          docker run -d --name frame-test -p 127.0.0.1:3001:3001 frame:test
+          sudo mkdir -p /tmp/frame-bind-test/images
+          sudo touch /tmp/frame-bind-test/existing
+          sudo chmod 700 /tmp/frame-bind-test /tmp/frame-bind-test/images
+          docker run -d --name frame-test -p 127.0.0.1:3001:3001 -v /tmp/frame-bind-test:/app/data frame:test
       - name: Verify initialization and frontend
         run: |
           for attempt in $(seq 1 30); do
@@ -48,6 +51,8 @@ jobs:
           done
           node -e "const fs = require('fs'); const auth = JSON.parse(fs.readFileSync('/tmp/auth.json')); if (auth.setupRequired !== true || auth.user !== null) process.exit(1)"
           curl --fail --silent http://127.0.0.1:3001/ | grep -q 'id="root"'
+          test "$(sudo stat -c '%u:%g' /tmp/frame-bind-test/existing)" = '1000:1000'
+          docker exec frame-test sh -c 'grep -Eq "^Uid:[[:space:]]+1000[[:space:]]+1000" /proc/1/status'
       - name: Container logs and cleanup
         if: always()
         run: |

@@ -41,7 +41,7 @@ export type Task = {
   prompt: string;
   options: Options;
   createdAt: string;
-  favorite: boolean;
+  favoriteImages?: string[];
   results: Result[];
 };
 export type User = { id: string; name: string; username: string };

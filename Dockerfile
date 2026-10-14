@@ -13,6 +13,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3001 DATA_DIR=/app/data
 LABEL org.opencontainers.image.title="Frame Image Workbench" \
       org.opencontainers.image.source="https://github.com/liubaicai/openAIImage" \
@@ -22,8 +23,9 @@ COPY --from=build /app/dist ./dist
 COPY server ./server
 COPY shared ./shared
 COPY package.json LICENSE ./
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/frame-entrypoint
 RUN mkdir -p /app/data && chown node:node /app/data
-USER node
+ENTRYPOINT ["frame-entrypoint"]
 VOLUME ["/app/data"]
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \

@@ -9,7 +9,7 @@ import {
   createHash,
 } from "node:crypto";
 import { promisify } from "node:util";
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import path from "node:path";
 import {
   db,
@@ -496,18 +496,53 @@ app.post("/api/tasks", (req, res) => {
     prompt: body.prompt,
     options: body.options,
     createdAt: new Date().toISOString(),
-    favorite: false,
+    favoriteImages: [],
     results,
   };
   saveTask(userId, task);
   res.status(201).json(task);
 });
-app.patch("/api/tasks/:id", (req, res) => {
+app.patch("/api/tasks/:id/favorites", (req, res) => {
   const task = requireTask(res, req.params.id);
-  const body = z.object({ favorite: z.boolean() }).parse(req.body);
-  task.favorite = body.favorite;
+  const body = z
+    .object({ image: z.string(), favorite: z.boolean() })
+    .parse(req.body);
+  if (!task.results.some((r) => r.images.includes(body.image)))
+    throw fail("图片不属于此任务", 404);
+  const favorites = new Set(task.favoriteImages || []);
+  if (body.favorite) favorites.add(body.image);
+  else favorites.delete(body.image);
+  task.favoriteImages = [...favorites];
   saveTask(res.locals.user.id, task);
   res.json(task);
+});
+app.delete("/api/tasks/:id", (req, res) => {
+  const task = requireTask(res, req.params.id);
+  const userId = res.locals.user.id;
+  const assets = db
+    .prepare("SELECT id FROM assets WHERE user_id=? AND task_id=?")
+    .all(userId, task.id) as { id: string }[];
+  // Synchronous cleanup prevents worker completion from interleaving with deletion.
+  for (const asset of assets) {
+    if (!/^[a-f0-9-]{36}$/i.test(asset.id)) throw new Error("Invalid asset ID");
+    rmSync(path.join(dataDir, "images", asset.id), { force: true });
+  }
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare("DELETE FROM assets WHERE user_id=? AND task_id=?").run(
+      userId,
+      task.id,
+    );
+    db.prepare("DELETE FROM tasks WHERE user_id=? AND id=?").run(
+      userId,
+      task.id,
+    );
+    db.exec("COMMIT");
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+  res.json({ deleted: true });
 });
 app.post("/api/tasks/:id/edit", (req, res) => {
   const task = requireTask(res, req.params.id);

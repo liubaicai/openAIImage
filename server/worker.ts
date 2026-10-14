@@ -28,23 +28,30 @@ async function execute(userId: string, taskId: string, resultId: string) {
       prompt,
       result.changes ? { ...task.options, count: 1 } : task.options,
       result.sourceImage,
+      taskId,
     );
     const latest = getTask(userId, taskId);
     if (!latest) return;
-    Object.assign(latest.results.find((r) => r.id === resultId)!, {
-      images,
-      status: "completed",
-      elapsed: Date.now() - start,
-    });
+    Object.assign(
+      latest.results.find((r) => r.id === resultId)!,
+      {
+        images,
+        status: "completed",
+        elapsed: Date.now() - start,
+      },
+    );
     saveTask(userId, latest);
   } catch (e) {
     const latest = getTask(userId, taskId);
     if (!latest) return;
-    Object.assign(latest.results.find((r) => r.id === resultId)!, {
-      status: "failed",
-      error: e instanceof Error ? e.message : "生成失败",
-      elapsed: Date.now() - start,
-    });
+    Object.assign(
+      latest.results.find((r) => r.id === resultId)!,
+      {
+        status: "failed",
+        error: e instanceof Error ? e.message : "生成失败",
+        elapsed: Date.now() - start,
+      },
+    );
     saveTask(userId, latest);
   } finally {
     active--;

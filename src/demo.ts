@@ -67,7 +67,7 @@ export const demoTasks: Task[] = samples.map(([title, prompt, image], i) => ({
   title,
   prompt,
   options: defaultOptions,
-  favorite: i === 1,
+  favoriteImages: [],
   createdAt: new Date(Date.now() - i * 3600000).toISOString(),
   results: [
     {

@@ -40,6 +40,40 @@ db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
   CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, mime TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS admin (singleton INTEGER PRIMARY KEY CHECK(singleton=1), user_id TEXT UNIQUE NOT NULL REFERENCES users(id), username TEXT UNIQUE NOT NULL);
 `);
+if (
+  !(db.prepare("PRAGMA table_info(assets)").all() as { name: string }[]).some(
+    (c) => c.name === "task_id",
+  )
+)
+  db.exec("ALTER TABLE assets ADD COLUMN task_id TEXT");
+db.exec("CREATE INDEX IF NOT EXISTS assets_task ON assets(user_id, task_id)");
+// Preserve old task favorites as individual image favorites, and associate legacy assets.
+for (const row of db.prepare("SELECT id,user_id,data FROM tasks").all() as {
+  id: string;
+  user_id: string;
+  data: string;
+}[]) {
+  const task = JSON.parse(row.data);
+  const images: string[] = task.results.flatMap(
+    (r: { images: string[] }) => r.images,
+  );
+  if (!Array.isArray(task.favoriteImages))
+    task.favoriteImages = task.favorite ? [...new Set(images)] : [];
+  delete task.favorite;
+  db.prepare("UPDATE tasks SET data=? WHERE id=?").run(
+    JSON.stringify(task),
+    row.id,
+  );
+  for (const image of images) {
+    const id = image.startsWith("/api/images/")
+      ? image.slice("/api/images/".length)
+      : "";
+    if (id)
+      db.prepare(
+        "UPDATE assets SET task_id=? WHERE id=? AND user_id=? AND task_id IS NULL",
+      ).run(row.id, id, row.user_id);
+  }
+}
 // Preserve the first legacy account and its data, but only this account can log in.
 // The legacy users.email column remains solely for database compatibility.
 if (!db.prepare("SELECT 1 FROM admin").get()) {

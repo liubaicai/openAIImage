@@ -1389,9 +1389,75 @@ small {
 .image-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 7px 10px;
   background: #fff;
+}
+.collection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 25px 0 18px;
+  font-size: 12px;
+  color: #859476;
+}
+.photo-collection {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 22px;
+}
+.collection-photo {
+  min-width: 0;
+  border: 1px solid #e6eadf;
+  border-radius: 10px;
+  overflow: hidden;
+  background: white;
+}
+.collection-preview {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  background: #f3f5ee;
+  padding: 0;
+}
+.collection-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.collection-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 15px 5px;
+}
+.collection-caption > div {
+  min-width: 0;
+}
+.collection-caption strong {
+  display: block;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.collection-caption small {
+  display: block;
+  font-size: 11px;
+  color: #859476;
+  margin-top: 5px;
+}
+.collection-source {
+  margin: 6px 15px 15px;
+}
+@media (max-width: 760px) {
+  .collection-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }
 .image-actions > span {
   font-size: 9px;
