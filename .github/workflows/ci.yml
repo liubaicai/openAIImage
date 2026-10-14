@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test / Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Docker smoke test
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build and start
+        run: |
+          docker build -t frame:test .
+          docker run -d --name frame-test -p 127.0.0.1:3001:3001 frame:test
+      - name: Verify initialization and frontend
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3001/api/auth/me > /tmp/auth.json; then
+              break
+            fi
+            sleep 2
+          done
+          node -e "const fs = require('fs'); const auth = JSON.parse(fs.readFileSync('/tmp/auth.json')); if (auth.setupRequired !== true || auth.user !== null) process.exit(1)"
+          curl --fail --silent http://127.0.0.1:3001/ | grep -q 'id="root"'
+      - name: Container logs and cleanup
+        if: always()
+        run: |
+          docker logs frame-test || true
+          docker rm -fv frame-test || true

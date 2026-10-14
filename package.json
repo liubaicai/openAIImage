@@ -1,0 +1,39 @@
+{
+  "name": "frame-image-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web \"node --env-file-if-exists=.env --import tsx --watch server/index.ts\" \"vite --host 127.0.0.1\"",
+    "build": "tsc --noEmit && vite build",
+    "start": "node --env-file-if-exists=.env --import tsx server/index.ts",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tsx": "^4.23.15",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  },
+  "license": "MIT",
+  "description": "A self-hosted multi-model image generation workbench",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liubaicai/openAIImage.git"
+  }
+}

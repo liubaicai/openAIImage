@@ -1,0 +1,16 @@
+services:
+  frame:
+    build: .
+    image: ghcr.io/liubaicai/openaiimage:latest
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      SECURE_COOKIES: ${SECURE_COOKIES:-false}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-3}
+    volumes:
+      - frame-data:/app/data
+
+volumes:
+  frame-data:

@@ -1,0 +1,19 @@
+# Use an allowlist so local data, credentials and screenshots never enter the build context.
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!vite.config.ts
+!index.html
+!src/
+!src/**
+!shared/
+!shared/**
+!server/
+!server/**
+!public/
+!public/**
+!tests/
+!tests/**
+!LICENSE
+!Dockerfile
