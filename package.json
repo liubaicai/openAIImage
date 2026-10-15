@@ -1,5 +1,5 @@
 {
-  "name": "frame-image-workbench",
+  "name": "yingtai",
   "version": "0.0.3",
   "private": true,
   "type": "module",
@@ -34,6 +34,6 @@
   "description": "A self-hosted multi-model image generation workbench",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/liubaicai/openAIImage.git"
+    "url": "git+https://github.com/liubaicai/yingtai.git"
   }
 }

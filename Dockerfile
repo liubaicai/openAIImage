@@ -15,8 +15,8 @@ FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3001 DATA_DIR=/app/data
-LABEL org.opencontainers.image.title="Frame Image Workbench" \
-      org.opencontainers.image.source="https://github.com/liubaicai/openAIImage" \
+LABEL org.opencontainers.image.title="Yingtai Image Workbench" \
+      org.opencontainers.image.source="https://github.com/liubaicai/yingtai" \
       org.opencontainers.image.licenses="MIT"
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

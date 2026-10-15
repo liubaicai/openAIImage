@@ -72,10 +72,10 @@ function Logo() {
   return (
     <div className="brand">
       <span className="brand-symbol">
-        f<span>↗</span>
+        <Image size={23} strokeWidth={1.7} aria-hidden="true" />
       </span>
       <span>
-        frame<span className="brand-dot">.</span>
+        映台<span className="brand-dot">.</span>
       </span>
     </div>
   );
@@ -702,7 +702,7 @@ export default function App() {
       {help && (
         <Modal
           title="把灵感变成作品"
-          subtitle="Frame 使用指南"
+          subtitle="映台使用指南"
           close={() => setHelp(false)}
         >
           <div className="help-content">
@@ -897,7 +897,7 @@ function Auth({
               : "仅管理员可访问此工作空间。"}
           </small>
         </div>
-        <div className="auth-bottom">专注创作，其余交给 Frame。</div>
+        <div className="auth-bottom">专注创作，其余交给映台。</div>
       </div>
     </div>
   );

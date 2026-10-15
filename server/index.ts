@@ -626,5 +626,5 @@ app.use(
 startWorker();
 const port = Number(process.env.PORT) || 3001;
 app.listen(port, process.env.HOST || "127.0.0.1", () =>
-  console.log(`Frame API: http://${process.env.HOST || "127.0.0.1"}:${port}`),
+  console.log(`Yingtai API: http://${process.env.HOST || "127.0.0.1"}:${port}`),
 );

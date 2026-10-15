@@ -1,23 +1,23 @@
 <div align="center">
 
-# Frame · 图片生成工作台
+# 映台 · 多模型图片创作工作台
 
 **留一点空间，给想象。**
 
 在一个安静、简洁的工作台里，连接模型、比较画面、持续修改。
 
-[![CI](https://github.com/liubaicai/openAIImage/actions/workflows/ci.yml/badge.svg)](https://github.com/liubaicai/openAIImage/actions/workflows/ci.yml)
+[![CI](https://github.com/liubaicai/yingtai/actions/workflows/ci.yml/badge.svg)](https://github.com/liubaicai/yingtai/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-7c8c69.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-22%20%7C%2024-5f7653.svg)](https://nodejs.org/)
-[![GHCR](https://img.shields.io/badge/Container-GHCR-66725d.svg)](https://github.com/liubaicai/openAIImage/pkgs/container/openaiimage)
+[![GHCR](https://img.shields.io/badge/Container-GHCR-66725d.svg)](https://github.com/liubaicai/yingtai/pkgs/container/openaiimage)
 
 [快速开始](#快速开始) · [界面预览](#界面预览) · [模型接入](#模型接入) · [部署配置](#部署配置) · [版本发布](#版本发布)
 
 </div>
 
-![Frame 工作台全景](docs/screenshots/workspace.jpg)
+![映台工作台全景](docs/screenshots/workspace.jpg)
 
-> 截图来自开发期间的体验/测试模式，展示示例素材与模拟数据，不代表模型实际生成质量、费用或账号配置。当前版本首次进入需设置管理员，不开放注册或访客入口。
+> 截图保留了更名前的 Frame 标识。截图来自开发期间的体验/测试模式，展示示例素材与模拟数据，不代表模型实际生成质量、费用或账号配置。当前版本首次进入需设置管理员，不开放注册或访客入口。
 
 ## 让创作保持简单
 
@@ -51,8 +51,8 @@
 需要 Docker Engine 与 Compose 插件。第一次部署可直接从源码构建：
 
 ```sh
-git clone https://github.com/liubaicai/openAIImage.git
-cd openAIImage
+git clone https://github.com/liubaicai/yingtai.git
+cd yingtai
 docker compose up -d --build
 ```
 
@@ -64,11 +64,13 @@ Compose 默认仅将端口映射到宿主机 `127.0.0.1`，数据保存在 `fram
 
 ### 使用发布镜像
 
-首次成功发布版本后，可直接运行 GHCR 镜像：
+仓库已更名为 `yingtai`；GHCR 包不会随仓库自动更名。下次版本发布后将提供 `ghcr.io/liubaicai/yingtai` 镜像，届时部署需更新镜像地址。现有 `frame-data` 卷名保持不变，以便沿用数据；移动部署目录时，也请沿用原 Compose 项目名（`docker compose -p 原项目名 …`）。
+
+当前已发布的 v0.0.3 镜像仍位于原 GHCR 地址，可直接运行：
 
 ```sh
 docker run -d \
-  --name frame \
+  --name yingtai \
   --init \
   --restart unless-stopped \
   -p 127.0.0.1:3001:3001 \
@@ -192,7 +194,7 @@ git tag v0.0.1
 git push origin v0.0.1
 ```
 
-正式版本产生 `:v0.0.1`、`:0.0.1`、`:latest`；预发布标签如 `v0.0.2-beta.1` 不覆盖 `latest`。镜像名称为 **`ghcr.io/liubaicai/openaiimage`**，发布说明包含镜像地址及 digest。
+正式版本产生 `:v0.0.1`、`:0.0.1`、`:latest`；预发布标签如 `v0.0.2-beta.1` 不覆盖 `latest`。更名后新版本的镜像名称为 **`ghcr.io/liubaicai/yingtai`**，发布说明包含镜像地址及 digest。
 
 使用仓库自带 `GITHUB_TOKEN`，无需额外配置 Docker Hub 密钥；仓库需允许 Actions 运行以及工作流写入 Packages 和 Release。[发布工作流](.github/workflows/release.yml) · [GitHub 容器发布文档](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images)
 
