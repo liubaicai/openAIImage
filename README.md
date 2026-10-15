@@ -9,7 +9,7 @@
 [![CI](https://github.com/liubaicai/yingtai/actions/workflows/ci.yml/badge.svg)](https://github.com/liubaicai/yingtai/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-7c8c69.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-22%20%7C%2024-5f7653.svg)](https://nodejs.org/)
-[![GHCR](https://img.shields.io/badge/Container-GHCR-66725d.svg)](https://github.com/liubaicai/yingtai/pkgs/container/openaiimage)
+[![GHCR](https://img.shields.io/badge/Container-GHCR-66725d.svg)](https://github.com/liubaicai/yingtai/pkgs/container/yingtai)
 
 [快速开始](#快速开始) · [界面预览](#界面预览) · [模型接入](#模型接入) · [部署配置](#部署配置) · [版本发布](#版本发布)
 
@@ -64,9 +64,9 @@ Compose 默认仅将端口映射到宿主机 `127.0.0.1`，数据保存在 `fram
 
 ### 使用发布镜像
 
-仓库已更名为 `yingtai`；GHCR 包不会随仓库自动更名。下次版本发布后将提供 `ghcr.io/liubaicai/yingtai` 镜像，届时部署需更新镜像地址。现有 `frame-data` 卷名保持不变，以便沿用数据；移动部署目录时，也请沿用原 Compose 项目名（`docker compose -p 原项目名 …`）。
+仓库已更名为 `yingtai`；GHCR 包不会随仓库自动更名。从 v0.0.4 起使用 `ghcr.io/liubaicai/yingtai` 镜像，旧部署升级时需更新镜像地址。现有 `frame-data` 卷名保持不变，以便沿用数据；移动部署目录时，也请沿用原 Compose 项目名（`docker compose -p 原项目名 …`）。
 
-当前已发布的 v0.0.3 镜像仍位于原 GHCR 地址，可直接运行：
+可直接运行 GHCR 发布镜像：
 
 ```sh
 docker run -d \
@@ -75,10 +75,10 @@ docker run -d \
   --restart unless-stopped \
   -p 127.0.0.1:3001:3001 \
   -v frame-data:/app/data \
-  ghcr.io/liubaicai/openaiimage:latest
+  ghcr.io/liubaicai/yingtai:latest
 ```
 
-支持 `linux/amd64` 与 `linux/arm64`。正式部署建议固定版本标签，如 `:v0.0.1`。更新 Compose 镜像：
+支持 `linux/amd64` 与 `linux/arm64`。正式部署建议固定版本标签，如 `:v0.0.4`。更新 Compose 镜像：
 
 ```sh
 docker compose pull
