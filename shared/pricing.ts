@@ -57,7 +57,7 @@ export function estimateImageCost(
       partial = true;
       continue;
     }
-    // Generation sends aspect ratio, not a guaranteed resolution. Keep all resolution tiers.
+    // Endpoints may normalize requested dimensions. Keep all resolution tiers.
     if (options.quality !== "auto") {
       const matches = outputs.filter(
         (p) => p.variant?.split("/")[0] === options.quality,
@@ -118,6 +118,6 @@ export function estimateImageCost(
     minUsd: Math.min(...totals.map((t) => t[0])),
     maxUsd: Math.max(...totals.map((t) => t[1])),
     partial,
-    detail: `USD，${options.count} 张，按每张一次请求计算。${variants ? "包含未确定分辨率或条件档位的价格范围。" : ""}${heuristic ? "用量粗估：像素按所选比例对应尺寸预算；图像按 256–8192 token/百万像素预算，提示词按 ASCII 4 字符/token、其他字符 1.5 token/字并留 32 token，输入用量取 0.5–2 倍，附带文本取 0–1024 token。" : ""}实际请求仅指定比例，分辨率由模型决定。${partial ? "仅为已知费用小计，存在未计费用。" : ""}路由、实际尺寸及用量可能变化；区间不是费用上限，以 OpenRouter 账单为准。`,
+    detail: `USD，${options.count} 张，按每张一次请求计算。${variants ? "包含未确定分辨率或条件档位的价格范围。" : ""}${heuristic ? "用量粗估：像素按所选比例对应尺寸预算；图像按 256–8192 token/百万像素预算，提示词按 ASCII 4 字符/token、其他字符 1.5 token/字并留 32 token，输入用量取 0.5–2 倍，附带文本取 0–1024 token。" : ""}请求包含比例和目标尺寸的文字要求，实际分辨率由模型决定。${partial ? "仅为已知费用小计，存在未计费用。" : ""}路由、实际尺寸及用量可能变化；区间不是费用上限，以 OpenRouter 账单为准。`,
   };
 }

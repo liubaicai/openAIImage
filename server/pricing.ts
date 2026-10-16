@@ -6,6 +6,7 @@ import {
   type PriceEndpoint,
 } from "../shared/pricing.js";
 import { validateURL } from "./providers.js";
+import { generationPrompt } from "../shared/generation-options.js";
 
 const cache = new Map<
   string,
@@ -48,7 +49,11 @@ export async function estimateProviderCost(
       entry = { value, expires: Date.now() + 5 * 60_000 };
       cache.set(cacheKey, entry);
     }
-    return estimateImageCost(await entry.value, options, prompt);
+    return estimateImageCost(
+      await entry.value,
+      options,
+      generationPrompt(prompt, options),
+    );
   } catch {
     cache.delete(cacheKey);
     return unknownCost(

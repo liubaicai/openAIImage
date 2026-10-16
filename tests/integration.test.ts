@@ -194,7 +194,7 @@ test(
       }
       if (
         req.url === "/v1/images/generations" &&
-        JSON.parse(body).prompt === "delete in flight"
+        JSON.parse(body).prompt.startsWith("delete in flight\n")
       ) {
         await new Promise<void>((resolve) => {
           releaseGeneration = resolve;
@@ -701,7 +701,7 @@ test(
         "POST",
         {
           prompt: "chat-image-check",
-          options: defaultOptions,
+          options: { ...defaultOptions, size: "864x1536", quality: "high" },
           models: [{ providerId: p2, modelId: "image-model" }],
         },
         cookie,
@@ -719,6 +719,13 @@ test(
         await sleep(100);
       }
       assert.ok(chatComplete);
+      const chatBody = JSON.parse(requests.find(
+        (r) => r.url === "/v1/chat/completions" && r.body.includes("chat-image-check"),
+      )!.body);
+      assert.equal(chatBody.image_config.aspect_ratio, "9:16");
+      assert.match(chatBody.messages[0].content, /864 × 1536/);
+      assert.match(chatBody.messages[0].content, /高画质/);
+      assert.equal(chatTask.data.prompt, "chat-image-check");
       assert.ok(
         requests.some(
           (r) =>
@@ -728,7 +735,7 @@ test(
       );
       const input = {
         prompt: "原始测试提示词",
-        options: defaultOptions,
+        options: { ...defaultOptions, size: "1536x864", quality: "high" },
         models: [
           { providerId: p1, modelId: "image-model" },
           { providerId: p1, modelId: "broken-model" },
@@ -737,6 +744,7 @@ test(
       };
       const created = await call("/tasks", "POST", input, cookie);
       assert.equal(created.status, 201);
+      assert.equal(created.data.prompt, input.prompt);
       const id = created.data.id;
       async function settled(): Promise<Task> {
         for (let i = 0; i < 80; i++) {
@@ -800,6 +808,9 @@ test(
       assert.match(editRequest.contentType, /multipart\/form-data/);
       assert.match(editRequest.body, /原始测试提示词/);
       assert.match(editRequest.body, /把背景改成蓝色/);
+      assert.match(editRequest.body, /16:9/);
+      assert.match(editRequest.body, /1536 × 864/);
+      assert.equal(editRequest.body.split("[输出规格]").length - 1, 1);
       assert.match(editRequest.body, /filename="source.png"/);
       await call(
         `/tasks/${id}/edit`,
@@ -819,6 +830,16 @@ test(
       assert.ok(nativeEdit);
       const nativeBody = JSON.parse(nativeEdit.body);
       assert.equal(nativeBody.model, "router-model");
+      assert.equal(nativeBody.aspect_ratio, "16:9");
+      assert.equal(nativeBody.size, "1536x864");
+      assert.equal(nativeBody.quality, "high");
+      assert.match(nativeBody.prompt, /高画质/);
+      const directBody = JSON.parse(requests.find(
+        (r) => r.url === "/v1/images/generations" && r.body.includes("原始测试提示词"),
+      )!.body);
+      assert.equal(directBody.size, "1536x864");
+      assert.equal(directBody.quality, "high");
+      assert.match(directBody.prompt, /16:9/);
       assert.ok(
         nativeBody.input_references[0].image_url.url.startsWith(
           "data:image/png;base64,",

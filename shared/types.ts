@@ -13,8 +13,19 @@ export type Provider = {
   models: Model[];
   hasKey: boolean;
 };
+export const imageSizes = [
+  "1024x1024",
+  "1536x1024",
+  "1024x1536",
+  "1536x864",
+  "864x1536",
+  "1536x1152",
+  "1152x1536",
+  "1024x1280",
+  "1280x1024",
+] as const;
 export type Options = {
-  size: "1024x1024" | "1536x1024" | "1024x1536";
+  size: (typeof imageSizes)[number];
   quality: "auto" | "low" | "medium" | "high";
   count: number;
   background: "auto" | "opaque" | "transparent";

@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import {
   defaultOptions,
+  imageSizes,
   taskStatus,
   type Task,
   type Provider,
@@ -50,6 +51,7 @@ import {
   type Result,
 } from "../shared/types";
 import { api } from "./api";
+import { aspectRatio } from "../shared/generation-options";
 import { EstimateCache } from "./estimate-cache";
 import { initialModels, lastModelsKey } from "./model-selection";
 import { costLabel, unknownCost, type CostEstimate } from "../shared/pricing";
@@ -1380,9 +1382,15 @@ function CreateTask({
                 })
               }
             >
-              <option value="1024x1024">1:1 · 方形</option>
-              <option value="1536x1024">3:2 · 横向</option>
-              <option value="1024x1536">2:3 · 竖向</option>
+              {imageSizes.map((size) => (
+                <option key={size} value={size}>
+                  {aspectRatio(size)} · {size === "1024x1024"
+                    ? "方形"
+                    : +size.split("x")[0] > +size.split("x")[1]
+                      ? "横向"
+                      : "竖向"} · {size}
+                </option>
+              ))}
             </select>
           </label>
           <label>
@@ -1435,8 +1443,8 @@ function CreateTask({
           </label>
         </div>
         <p className="field-hint">
-          尺寸、画质和透明背景需模型支持。OpenRouter
-          专用图片模型支持画质与背景参数，具体以模型能力为准。
+          发送时会自动补充比例、目标尺寸及已选画质与背景要求，保留原提示词。
+          实际尺寸和画质取决于模型能力；不支持所选尺寸的模型可能拒绝请求，请改选其他比例。
         </p>
         <div className="cost-summary" aria-live="polite">
           <div>

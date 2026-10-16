@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import type { Model, Options, Provider } from "../shared/types.js";
+import { aspectRatio, generationPrompt } from "../shared/generation-options.js";
 import { dataDir, db, getTask } from "./store.js";
 
 function privateIP(ip: string): boolean {
@@ -291,6 +292,7 @@ export async function generate(
   taskId: string,
 ) {
   let source: Buffer | undefined;
+  prompt = generationPrompt(prompt, options);
   let mime = "image/png";
   if (sourceImage) {
     const id = sourceImage.split("/").pop()!;
@@ -317,12 +319,8 @@ export async function generate(
           model,
           prompt,
           n: 1,
-          aspect_ratio:
-            options.size === "1536x1024"
-              ? "3:2"
-              : options.size === "1024x1536"
-                ? "2:3"
-                : "1:1",
+          aspect_ratio: aspectRatio(options.size),
+          size: options.size,
           ...(options.quality !== "auto" ? { quality: options.quality } : {}),
           ...(options.background !== "auto"
             ? { background: options.background }
@@ -377,12 +375,7 @@ export async function generate(
         messages: [{ role: "user", content }],
         modalities: ["image", "text"],
         image_config: {
-          aspect_ratio:
-            options.size === "1536x1024"
-              ? "3:2"
-              : options.size === "1024x1536"
-                ? "2:3"
-                : "1:1",
+          aspect_ratio: aspectRatio(options.size),
         },
       });
       const output = response.choices?.[0]?.message?.images;

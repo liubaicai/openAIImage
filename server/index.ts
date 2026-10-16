@@ -25,6 +25,7 @@ import { optimize, validateURL, listModels } from "./providers.js";
 import { startWorker } from "./worker.js";
 import { estimateProviderCost } from "./pricing.js";
 import type { User, Task, Result } from "../shared/types.js";
+import { imageSizes } from "../shared/types.js";
 
 const hashPassword = promisify(scrypt);
 const app = express();
@@ -384,7 +385,7 @@ app.post("/api/optimize", async (req, res) => {
   });
 });
 const optionsSchema = z.object({
-  size: z.enum(["1024x1024", "1536x1024", "1024x1536"]),
+  size: z.enum(imageSizes),
   quality: z.enum(["auto", "low", "medium", "high"]),
   count: z.number().int().min(1).max(4),
   background: z.enum(["auto", "opaque", "transparent"]),
